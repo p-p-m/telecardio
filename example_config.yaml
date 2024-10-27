@@ -1,6 +1,6 @@
 input_path: "/Users/pavel.m/Projects/telecardio/input/"  # тут мають бути файли з розширенням .zhr
 output_path: "/Users/pavel.m/Projects/telecardio/output/"  # тут будуть створюватися папки лікарів
-rejected_path: "/Users/pavel.m/Projects/telecardio/rejected/"  # тут будуть файли дуплікати (імʼя яких є вже в папці output_path)
+rejected_path: "/Users/pavel.m/Projects/telecardio/rejected/"  # тут будуть файли дуплікати (імʼя яких вже є в папці output_path)
 evening_hours: 6 # години до кінця дня, після яких холтери будуть переноситись на наступний день
 
 doctors:
