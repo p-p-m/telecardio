@@ -1,0 +1,31 @@
+input_path: "/Users/pavel.m/Projects/telecardio/input/"  # тут мають бути файли з розширенням .zhr
+output_path: "/Users/pavel.m/Projects/telecardio/output/"  # тут будуть створюватися папки лікарів
+rejected_path: "/Users/pavel.m/Projects/telecardio/rejected/"  # тут будуть файли дуплікати (імʼя яких є вже в папці output_path)
+evening_hours: 6 # години до кінця дня, після яких холтери будуть переноситись на наступний день
+
+doctors:
+  - name: "Михаил Русланович"  # ім'я лікаря
+    folder_name: "MR"  # назва папки, яка буде створена в output_path
+    limit: -1  # склільки максимум холтерів на день буде передано лікарю, -1 - без ліміту
+    skip_stations:  # станції(2 перші літери назви холтера), які не потрібно передавати лікарю
+      - "AC"
+      - "AD"
+    stations_limits:  # ліміти по станціям (максисмум холтерів, які можна передати лікарю)
+      "AB": 1
+      "AE": 3
+    is_working: true  # чи працює лікар взагалі, якщо значення false, то лікарь не буде отримувати холтери
+    days_off:  # дні відпочинку, лікарь не працює в ці дні
+      - "18.10.2024"
+
+  - name: "Алина Викторовна"  # те саме для другого лікаря
+    folder_name: "AV"
+    limit: 3
+    is_working: true
+    days_off:
+      - "17.10.2024"
+      - "21.10.2024"
+
+  - name: "Юлия Владимировна"  # те саме для третього лікаря
+    folder_name: "UV"
+    limit: 2
+    is_working: false
