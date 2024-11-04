@@ -13,14 +13,36 @@ with open("config.yaml", 'r') as file:
 
 INPUT_PATH = CONFIG["input_path"]
 OUTPUT_PATH = CONFIG["output_path"]
+REJECTED_PATH = CONFIG["rejected_path"]
+
+print('INPUT_PATH:', INPUT_PATH)
+print('OUTPUT_PATH:', OUTPUT_PATH)
+print('REJECTED_PATH:', REJECTED_PATH)
 
 
 def _current_date():
-    return (datetime.datetime.now() + datetime.timedelta(hours=CONFIG.get("evening_hours", 0))).date()
+    return (
+        datetime.datetime.now() + datetime.timedelta(hours=CONFIG.get("evening_hours", 0))
+    ).date()
 
 
-def _get_holters_in_folder(folder_path):
-    return [file_name for file_name in os.listdir(folder_path) if file_name.lower().endswith(".zhr")]
+def _get_holters_in_folder(folder_path, recursive=False) -> list[str]:
+    """ Return list of full paths to all .zhr files in the folder. """
+    if recursive:
+        file_names = [
+            os.path.join(root, file_name)
+            for root, _, file_names in os.walk(folder_path)
+            for file_name in file_names
+        ]
+    else:
+        file_names = [
+            os.path.join(folder_path, file_name)
+            for file_name in os.listdir(folder_path)
+        ]
+    return [
+        file_name for file_name in file_names
+        if file_name.lower().endswith(".zhr")
+    ]
 
 
 @dataclasses.dataclass
@@ -70,25 +92,40 @@ DOCTORS = [Doctor(**doctor) for doctor in CONFIG["doctors"]]
 
 def distribute_holters():
     holters = _get_holters_in_folder(INPUT_PATH)
+    existing_holters = set(
+        os.path.basename(h).lower() for h in _get_holters_in_folder(OUTPUT_PATH, recursive=True)
+    )
     for holter in holters:
+        holter_name = os.path.basename(holter)
+        # If holter already exists in the output folder, move it to rejected folder
+        if holter_name.lower() in existing_holters:
+            if not os.path.exists(REJECTED_PATH):
+                os.makedirs(REJECTED_PATH)
+            target_path = os.path.join(REJECTED_PATH, holter_name)
+            print('Rejecting holter', holter, 'to', target_path)
+            shutil.move(holter, target_path)
+            continue
+
         # Select doctor who can take this holter
-        acceptable_doctors = [doctor for doctor in DOCTORS if doctor.can_take_holter(holter)]
+        acceptable_doctors = [doctor for doctor in DOCTORS if doctor.can_take_holter(holter_name)]
         if not acceptable_doctors:
             print(f"ERROR! No doctor can take holter {holter}. Please update the config file.")
             continue
 
         # Randomly select doctor between doctors with minimum holters
         min_holters_count = min([len(doctor.get_today_holters()) for doctor in acceptable_doctors])
-        doctors_with_min_holters = [doctor for doctor in acceptable_doctors if len(doctor.get_today_holters()) == min_holters_count]
+        doctors_with_min_holters = [
+            doctor for doctor in acceptable_doctors
+            if len(doctor.get_today_holters()) == min_holters_count
+        ]
         doctor = random.choice(doctors_with_min_holters)
 
         # Give the holter to the selected doctor
         if not os.path.exists(doctor.folder_path):
             os.makedirs(doctor.folder_path)
-        source_path = os.path.join(INPUT_PATH, holter)
-        target_path = os.path.join(doctor.folder_path, holter)
-        print('Moving holter', source_path, 'to', target_path)
-        shutil.move(source_path, target_path)
+        target_path = os.path.join(doctor.folder_path, holter_name)
+        print('Moving holter', holter, 'to', target_path)
+        shutil.move(holter, target_path)
 
 
 # Example usage

@@ -1,4 +1,6 @@
 input
 output
+rejected
 .venv
 config.yaml
+uv.lock
