@@ -68,7 +68,7 @@ class Doctor:
         if not self.is_working:
             return False
 
-        if _current_date().strftime("%d.%m.%Y") in self.days_off:
+        if self.days_off and _current_date().strftime("%d.%m.%Y") in self.days_off:
             return False
 
         if self.skip_stations and holter_name[:2] in self.skip_stations:
@@ -90,6 +90,25 @@ class Doctor:
 DOCTORS = [Doctor(**doctor) for doctor in CONFIG["doctors"]]
 
 
+def _move_holter(holter_path: str, target_folder: str, operation_name: str):
+    if not os.path.exists(target_folder):
+        os.makedirs(target_folder)
+    target_path = os.path.join(target_folder, os.path.basename(holter_path))
+    print(operation_name, 'holter', holter_path, 'to', target_path)
+    try:
+        shutil.move(holter_path, target_path)
+    except Exception as e:
+        print(f"ERROR! Failed to move holter {holter_path} to {target_path}. Error: {e}")
+
+
+def give_holter_to_doctor(holter_path: str, doctor: Doctor):
+    _move_holter(holter_path, doctor.folder_path, 'Moving')
+
+
+def reject_holter(holter_path: str):
+    _move_holter(holter_path, REJECTED_PATH, 'Rejecting')
+
+
 def distribute_holters():
     holters = _get_holters_in_folder(INPUT_PATH)
     existing_holters = set(
@@ -99,11 +118,7 @@ def distribute_holters():
         holter_name = os.path.basename(holter)
         # If holter already exists in the output folder, move it to rejected folder
         if holter_name.lower() in existing_holters:
-            if not os.path.exists(REJECTED_PATH):
-                os.makedirs(REJECTED_PATH)
-            target_path = os.path.join(REJECTED_PATH, holter_name)
-            print('Rejecting holter', holter, 'to', target_path)
-            shutil.move(holter, target_path)
+            reject_holter(holter)
             continue
 
         # Select doctor who can take this holter
@@ -121,11 +136,7 @@ def distribute_holters():
         doctor = random.choice(doctors_with_min_holters)
 
         # Give the holter to the selected doctor
-        if not os.path.exists(doctor.folder_path):
-            os.makedirs(doctor.folder_path)
-        target_path = os.path.join(doctor.folder_path, holter_name)
-        print('Moving holter', holter, 'to', target_path)
-        shutil.move(holter, target_path)
+        give_holter_to_doctor(holter, doctor)
 
 
 # Example usage
