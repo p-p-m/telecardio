@@ -4,3 +4,4 @@ rejected
 .venv
 config.yaml
 uv.lock
+.DS_Store
