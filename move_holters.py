@@ -139,7 +139,6 @@ def distribute_holters():
         give_holter_to_doctor(holter, doctor)
 
 
-# Example usage
 if __name__ == "__main__":
     print("Distributing holters... Press Ctrl+C to stop.")
     while True:
