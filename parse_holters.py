@@ -8,8 +8,7 @@ import csv
 with open("config.yaml", 'r') as file:
     CONFIG = yaml.safe_load(file)
 
-# PATH = CONFIG["output_path"]
-PATH = '/Users/pavel.m/Documents/'
+PATH = CONFIG["output_path"]
 
 def _get_holters_in_folder(folder_path, recursive=False) -> list[str]:
     """ Return list of full paths to all .zhr files in the folder. """
