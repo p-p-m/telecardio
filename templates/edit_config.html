@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YAML Editor</title>
+    <script>
+        async function loadYAML() {
+            const response = await fetch("/load");
+            const data = await response.json();
+            document.getElementById("yaml-editor").value = data.content;
+        }
+
+        async function saveYAML() {
+            const content = document.getElementById("yaml-editor").value;
+            const response = await fetch("/save", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ content })
+            });
+            const result = await response.json();
+            document.getElementById("status").innerText = result.success ? "Saved!" : "Error: " + result.error;
+        }
+
+        window.onload = loadYAML;
+    </script>
+</head>
+<body>
+    <h1>Online YAML Editor</h1>
+    <textarea id="yaml-editor" rows="50" cols="120"></textarea><br>
+    <button onclick="saveYAML()">Save</button>
+    <p id="status"></p>
+</body>
+</html>
