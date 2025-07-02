@@ -1,7 +1,7 @@
 import yaml
 import datetime
 import calendar
-from flask import Flask, render_template_string, render_template, request, jsonify, redirect, url_for
+from flask import Flask, render_template, request, jsonify, redirect, url_for
 
 from data import get_daily_metadata
 
