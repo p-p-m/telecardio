@@ -10,7 +10,7 @@ app = Flask(__name__)
 
 
 @app.route("/<int:year>/<int:month>/")
-def stats_by_month(year=None, month=None):
+def monthly_stats(year, month):
     # Daily stats for given month and year
     daily_metadata = get_daily_metadata(year=year, month=month)
 
@@ -26,13 +26,33 @@ def stats_by_month(year=None, month=None):
             row.append(doctor_metadata.get(date_, 0))
         data.append(row)
 
-    return render_template("stats.html", name=f"Stats for {month:02d}/{year}", headers=headers, data=data)
+    previous_year = year - 1 if month == 1 else year
+    previous_month = 12 if month == 1 else month - 1
+    previous_month_link = url_for('monthly_stats', year=previous_year, month=previous_month)
+
+    next_year = year + 1 if month == 12 else year
+    next_month = 1 if month == 12 else month + 1
+    next_month_link = url_for('monthly_stats', year=next_year, month=next_month)
+
+    return render_template(
+        "stats.html",
+        name=f"Stats for {month:02d}/{year}",
+        headers=headers,
+        data=data,
+        previous_month_link=previous_month_link,
+        next_month_link=next_month_link,
+    )
+
+
+@app.route("/<int:year>/<int:month>/<int:day>/<string:doctor>/")
+def daily_stats(year, month, day, doctor):
+    pass
 
 
 @app.route("/")
-def home_redirect():
+def home():
     now = datetime.datetime.now()
-    return redirect(url_for('stats_by_month', year=now.year, month=now.month))
+    return redirect(url_for('monthly_stats', year=now.year, month=now.month))
 
 
 @app.route("/edit-config")

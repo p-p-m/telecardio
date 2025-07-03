@@ -2,22 +2,15 @@ import datetime
 import os
 import typing as t
 import yaml
-
-
-# Moved from move_holters.py
-with open("config.yaml", 'r') as file:
-    CONFIG = yaml.safe_load(file)
-
-PATH = CONFIG["output_path"]
-
+import config
 
 def get_daily_metadata(month=None, year=None) -> t.Dict[str, t.Dict[datetime.date, int]]:
     """ Return how many holters each doctor have per day """
-    doctors = os.listdir(CONFIG["output_path"])
+    doctors = os.listdir(config.get()["output_path"])
     data = {}
     for doctor in doctors:
         data[doctor] = {}
-        doctor_path = os.path.join(CONFIG["output_path"], doctor)
+        doctor_path = os.path.join(config.get()["output_path"], doctor)
         dates = [
             datetime.datetime.strptime(date_str, "%d.%m.%Y").date()
             for date_str in os.listdir(doctor_path)

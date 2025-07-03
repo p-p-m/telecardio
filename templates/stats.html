@@ -3,14 +3,15 @@
     <head>
         <title>Stats</title>
         <style>
-            table { width: 50%%; border-collapse: collapse; margin: 20px 0; }
+            table { width: 50%; border-collapse: collapse; margin: 20px 0; }
             th, td { border: 1px solid black; padding: 10px; text-align: left; }
             th { background-color: #f2f2f2; }
         </style>
     </head>
     <body>
         <a href="/">Stats</a> | <a href="/edit-config">Edit config</a>
-        <h1>{{ name }}</h1>
+        <h2>{{ name }}</h2>
+        <a href="{{ previous_month_link }}">Previous Month</a> | <a href="{{ next_month_link }}">Next Month</a>
         <table>
             <tr>
                 {% for cell in headers %}

@@ -4,8 +4,11 @@ import os
 import random
 import shutil
 import time
+import typing
 
 import yaml
+
+import config
 
 
 with open("config.yaml", 'r') as file:
@@ -26,7 +29,7 @@ def _current_date():
     ).date()
 
 
-def _get_holters_in_folder(folder_path, recursive=False) -> list[str]:
+def _get_holters_in_folder(folder_path, recursive=False) -> typing.List[str]:
     """ Return list of full paths to all .zhr files in the folder. """
     if recursive:
         file_names = [
@@ -50,10 +53,10 @@ class Doctor:
     name: str
     folder_name: str
     limit: int = -1
-    skip_stations: list[str] | None = None
-    stations_limits: dict[str, int] | None = None
+    skip_stations: typing.Optional[typing.List[str]] = None
+    stations_limits: typing.Optional[typing.Dict[str, int]] = None
     is_working: bool = True
-    days_off: list[str] | None = None
+    days_off: typing.Optional[typing.List[str]]= None
 
     @property
     def folder_path(self):
