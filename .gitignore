@@ -5,3 +5,4 @@ rejected
 config.yaml
 uv.lock
 .DS_Store
+__pycache__
