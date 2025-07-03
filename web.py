@@ -1,12 +1,24 @@
 import yaml
 import datetime
 import calendar
+import config
+import os
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 
+import holter
 from data import get_daily_metadata
 
 
 app = Flask(__name__)
+
+
+class Cell:
+    def __init__(self, value, link=None):
+        self.value = value
+        self.link = link
+
+    def __str__(self):
+        return str(self.value)
 
 
 @app.route("/<int:year>/<int:month>/")
@@ -25,9 +37,14 @@ def monthly_stats(year, month):
         for day in range(1, num_days + 1):
             date_ = datetime.date(year, month, day)
             count = doctor_metadata.get(date_, 0)
-            row.append(count)
+            link = url_for('daily_doctor_stats', year=year, month=month, day=day, doctor=doctor)
+            row.append(Cell(count, link=link))
             summary_row[day] += count
         data.append(row)
+    summary_row = summary_row[:1] + [
+        Cell(value, link=url_for('daily_stats', year=year, month=month, day=day))
+        for day, value in zip(range(1, num_days + 1), summary_row[1:])
+    ]
     data.append(summary_row)
 
     previous_year = year - 1 if month == 1 else year
@@ -48,10 +65,52 @@ def monthly_stats(year, month):
     )
 
 
-@app.route("/<int:year>/<int:month>/<int:day>/<string:doctor>/")
-def daily_stats(year, month, day, doctor):
-    pass
+def _get_daily_data(year, month, day, doctor):
+    path = os.path.join(
+        config.get()["output_path"], doctor, '{:02d}.{:02d}.{}'.format(day, month, year)
+    )
+    data = []
+    if os.path.exists(path):
+        file_names = holter.get_in_folder(path)
+        for file_name in file_names:
+            patient_data = holter.get_patient_data(file_name)
+            row = [
+                os.path.basename(file_name),
+                patient_data['name'],
+                patient_data['birth_date'],
+            ]
+            data.append(row)
+    return data
 
+
+@app.route("/<int:year>/<int:month>/<int:day>/<string:doctor>/")
+def daily_doctor_stats(year, month, day, doctor):
+    data = _get_daily_data(year, month, day, doctor)
+    headers = ["File Name", "Name", "Birth Date"]
+    name = f"Stats for {doctor} on {day:02d}.{month:02d}.{year}"
+    return render_template(
+        "daily_stats.html",
+        name=name,
+        headers=headers,
+        data=data,
+    )
+
+@app.route("/<int:year>/<int:month>/<int:day>/")
+def daily_stats(year, month, day):
+    doctors = get_daily_metadata(year=year, month=month).keys()
+    data = []
+    for doctor in doctors:
+        doctor_data = _get_daily_data(year, month, day, doctor)
+        doctor_data = [[doctor] + row for row in doctor_data]
+        data += doctor_data
+    headers = ["Doctor", "File Name", "Name", "Birth Date"]
+    name = f"Stats for {day:02d}.{month:02d}.{year}"
+    return render_template(
+        "daily_stats.html",
+        name=name,
+        headers=headers,
+        data=data,
+    )
 
 @app.route("/")
 def home():

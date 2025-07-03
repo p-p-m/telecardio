@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <title>Stats</title>
+        <title>Daily Stats</title>
         <style>
             table { width: 50%; border-collapse: collapse; margin: 20px 0; }
             th, td { border: 1px solid black; padding: 10px; text-align: left; }
@@ -11,7 +11,6 @@
     <body>
         <a href="/">Stats</a> | <a href="/edit-config">Edit config</a>
         <h2>{{ name }}</h2>
-        <a href="{{ previous_month_link }}">Previous Month</a> | <a href="{{ next_month_link }}">Next Month</a>
         <table>
             <tr>
                 {% for cell in headers %}
@@ -21,13 +20,7 @@
             {% for row in data %}
             <tr>
                 {% for cell in row %}
-                <td>
-                    {% if cell.link %}
-                        <a href="{{ cell.link }}">{{ cell }}</a>
-                    {% else %}
-                        {{ cell }}
-                    {% endif %}
-                </td>
+                <td>{{ cell }}</td>
                 {% endfor %}
             </tr>
             {% endfor %}
