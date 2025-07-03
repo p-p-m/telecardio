@@ -19,12 +19,16 @@ def monthly_stats(year, month):
     headers = ["Doctor \\ Date"] + list(range(1, num_days + 1))
 
     data = []
+    summary_row = ["Total"] + [0] * num_days
     for doctor, doctor_metadata in daily_metadata.items():
         row = [doctor]
         for day in range(1, num_days + 1):
             date_ = datetime.date(year, month, day)
-            row.append(doctor_metadata.get(date_, 0))
+            count = doctor_metadata.get(date_, 0)
+            row.append(count)
+            summary_row[day] += count
         data.append(row)
+    data.append(summary_row)
 
     previous_year = year - 1 if month == 1 else year
     previous_month = 12 if month == 1 else month - 1
