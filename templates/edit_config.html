@@ -1,53 +1,75 @@
 <!DOCTYPE html>
 <html lang="en">
+<script>
+
+</script>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YAML Editor</title>
-    <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+    <title>Config</title>
+    <style>
+        table { width: 50%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid black; padding: 10px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
     <script>
-        async function loadYAML() {
-            const response = await fetch("/load");
-            const data = await response.json();
-            document.getElementById("yaml-editor").value = data.content;
-        }
-
-        function validateYAML(content) {
-            try {
-                jsyaml.load(content);
-                return { valid: true };
-            } catch (e) {
-                return { valid: false, error: e.message };
-            }
-        }
-
-        async function saveYAML() {
-            const content = document.getElementById("yaml-editor").value;
-            const validation = validateYAML(content);
-            const statusElem = document.getElementById("status");
-            if (!validation.valid) {
-                statusElem.innerText = "YAML Error: " + validation.error;
-                statusElem.style.color = "red";
-                return;
-            }
-            const response = await fetch("/save", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ content })
-            });
-            const result = await response.json();
-            statusElem.innerText = result.success ? "Saved!" : "Error: " + result.error;
-            statusElem.style.color = result.success ? "green" : "red";
-        }
-
-        window.onload = loadYAML;
+    fetch('/scheduler/status')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('config-status').textContent = 'Config status: ' + (data.status || JSON.stringify(data));
+        })
+        .catch(error => {
+            document.getElementById('config-status').textContent = 'Error loading config status';
+        });
+    function schedulerAction(action) {
+        fetch('/scheduler/' + action, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('config-status').textContent = 'Config status: ' + (data.status || JSON.stringify(data));
+        })
+        .catch(error => {
+            document.getElementById('config-status').textContent = 'Error: ' + error;
+        });
+    }
     </script>
+
 </head>
 <body>
     <a href="/">Stats</a> | <a href="/edit-config">Edit config</a>
     <h1>Config</h1>
-    <textarea id="yaml-editor" rows="50" cols="120"></textarea><br>
-    <button onclick="saveYAML()">Save</button>
-    <p id="status"></p>
+    <p>Input path: {{ config.input_path }}</p>
+    <p>Output path: {{ config.output_path }}</p>
+    <p>Rejected path: {{ config.rejected_path }}</p>
+    <p>Evening hours: {{ config.evening_hours }}</p>
+    <h2>Doctors</h2>
+    <table>
+        <tr>
+            <th>Name</th>
+            <th>Folder</th>
+            <th>Limit</th>
+            <th>Skip stations</th>
+            <th>Stations limits</th>
+            <th>Is working</th>
+            <th>Days off</th>
+        </tr>
+        {% for doctor in config.doctors %}
+        <tr>
+            <td>{{ doctor.name }}</td>
+            <td>{{ doctor.folder_name }}</td>
+            <td>{{ doctor.limit }}</td>
+            <td>{{ doctor.skip_stations }}</td>
+            <td>{{ doctor.stations_limits }}</td>
+            <td>{{ doctor.is_working }}</td>
+            <td>{{ doctor.days_off }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <hr>
+    <div id="config-status">Loading config status...</div>
+    <button onclick="schedulerAction('start')">Start Job</button>
+    <button onclick="schedulerAction('stop')">Stop Job</button>
 </body>
 </html>

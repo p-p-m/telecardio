@@ -143,7 +143,9 @@ def distribute_holters():
 
 
 if __name__ == "__main__":
-    print("Distributing holters... Press Ctrl+C to stop.")
-    while True:
-        distribute_holters()
-        time.sleep(10)
+    config = config.get()
+    print(config["doctors"])
+    # print("Distributing holters... Press Ctrl+C to stop.")
+    # while True:
+    #     distribute_holters()
+    #     time.sleep(10)

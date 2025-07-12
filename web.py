@@ -4,12 +4,15 @@ import calendar
 import config
 import os
 from flask import Flask, render_template, request, jsonify, redirect, url_for
+from apscheduler.schedulers.background import BackgroundScheduler
 
 import holter
+import move_holters
 from data import get_daily_metadata
 
 
 app = Flask(__name__)
+scheduler = BackgroundScheduler()
 
 
 class Cell:
@@ -120,27 +123,58 @@ def home():
 
 @app.route("/edit-config")
 def edit_config():
-    return render_template("edit_config.html")
+    return render_template("edit_config.html", config=config.get())
 
 
-@app.route("/load", methods=["GET"])
-def load_yaml():
-    with open("config.yaml", "r", encoding="utf-8") as f:
-        data = f.read()
-    return jsonify({"content": data})
+def _distribute_holters_task():
+    move_holters.distribute_holters()
 
 
-@app.route("/save", methods=["POST"])
-def save_yaml():
-    data = request.json.get("content", "")
-    try:
-        yaml.safe_load(data)  # Validate YAML format
-        with open("config.yaml", "w", encoding="utf-8") as f:
-            f.write(data)
-        return jsonify({"success": True})
-    except yaml.YAMLError:
-        return jsonify({"success": False, "error": "Invalid YAML format"}), 400
+def _start_scheduler():
+    if not scheduler.running:
+        scheduler.add_job(
+            func=_distribute_holters_task,
+            trigger="interval",
+            seconds=5,
+            id="distribute-holters-task",
+            replace_existing=True,
+        )
+        scheduler.start()
+        print("Scheduler started.")
+
+
+@app.route("/scheduler/start", methods=["POST"])
+def scheduler_start():
+    if not scheduler.get_job("distribute-holters-task"):
+        scheduler.add_job(
+            func=_distribute_holters_task,
+            trigger="interval",
+            seconds=5,
+            id="distribute-holters-task",
+            replace_existing=True,
+        )
+        print("Scheduler job added.")
+    return jsonify({"status": "Job is running"})
+
+
+@app.route("/scheduler/stop", methods=["POST"])
+def scheduler_stop():
+    job = scheduler.get_job("distribute-holters-task")
+    if job:
+        scheduler.remove_job("distribute-holters-task")
+        print("Scheduler job removed.")
+    return jsonify({"status": "Job is not running"})
+
+
+@app.route("/scheduler/status", methods=["GET"])
+def scheduler_status():
+    job = scheduler.get_job("distribute-holters-task")
+    if job:
+        return jsonify({"status": "Job is running"})
+    else:
+        return jsonify({"status": "Job is not running"})
 
 
 if __name__ == "__main__":
+    _start_scheduler()
     app.run(debug=True)
