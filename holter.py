@@ -42,7 +42,15 @@ def _extract_name(input_string):
     # Leave only Ukrainian letters
     input_string = re.sub(r'[^А-Яа-яЄєІіЇїҐґ\s]', '', input_string)
     # Add a space before uppercase letters, but not at the start of the string
-    return re.sub(r'(?<!^)([А-ЯЄІЇҐ])', r' \1', input_string)
+    result = re.sub(r'(?<!^)([А-ЯЄІЇҐ])', r' \1', input_string)
+    result = result.replace('Регистратор', '').strip()
+    # Remove 1-2 letter words from start and end
+    words = result.split()
+    while words and len(words[0]) <= 2:
+        words.pop(0)
+    while words and len(words[-1]) <= 2:
+        words.pop()
+    return ' '.join(words)
 
 
 def get_patient_data(path: str):
@@ -58,6 +66,10 @@ def get_patient_data(path: str):
 
         birth_date = _extract_date(lines[-1])
         name = _extract_name(lines[-2])
+        if len(name) < 4:
+            name_2 = _extract_name(lines[-1])
+            if len(name_2) > len(name):
+                name = name_2
         return {
             'name': name,
             'birth_date': birth_date,
@@ -68,3 +80,10 @@ def get_patient_data(path: str):
             'name': 'Unknown',
             'birth_date': 'Unknown',
         }
+
+
+if __name__ == "__main__":
+    # Example usage
+    path = "/Users/pavel.m/Projects/telecardio/output/Михаил Русланович/12.07.2025/ABSYV2AWA6.ZHR"
+    data = get_patient_data(path)
+    print(data)
