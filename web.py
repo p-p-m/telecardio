@@ -1,9 +1,8 @@
-import yaml
 import datetime
 import calendar
 import config
 import os
-from flask import Flask, render_template, request, jsonify, redirect, url_for
+from flask import Flask, render_template, jsonify, redirect, url_for
 from apscheduler.schedulers.background import BackgroundScheduler
 
 import holter
@@ -13,6 +12,14 @@ from data import get_daily_metadata
 
 app = Flask(__name__)
 scheduler = BackgroundScheduler()
+
+
+@app.before_request
+def check_config_access():
+    try:
+        config.get()
+    except Exception as e:
+        return render_template("config_error.html", error_message=str(e)), 500
 
 
 class Cell:
@@ -31,23 +38,27 @@ def monthly_stats(year, month):
 
     # Initialize dates as all possible days (integers) of the current month
     num_days = calendar.monthrange(year, month)[1]
-    headers = ["Doctor \\ Date"] + list(range(1, num_days + 1))
+    headers = ["Doctor \\ Date"] + list(range(1, num_days + 1)) + ["Total"]
 
     data = []
-    summary_row = ["Total"] + [0] * num_days
+    summary_row = ["Daily total"] + [0] * num_days
     for doctor, doctor_metadata in daily_metadata.items():
         row = [doctor]
+        row_count = 0
         for day in range(1, num_days + 1):
             date_ = datetime.date(year, month, day)
             count = doctor_metadata.get(date_, 0)
+            row_count += count
             link = url_for('daily_doctor_stats', year=year, month=month, day=day, doctor=doctor)
             row.append(Cell(count, link=link))
             summary_row[day] += count
+        row.append(row_count)
         data.append(row)
     summary_row = summary_row[:1] + [
         Cell(value, link=url_for('daily_stats', year=year, month=month, day=day))
         for day, value in zip(range(1, num_days + 1), summary_row[1:])
     ]
+    summary_row.append(sum([cell.value for cell in summary_row[1:]]))
     data.append(summary_row)
 
     previous_year = year - 1 if month == 1 else year
@@ -80,7 +91,6 @@ def _get_daily_data(year, month, day, doctor):
             row = [
                 os.path.basename(file_name),
                 patient_data['name'],
-                patient_data['birth_date'],
             ]
             data.append(row)
     return data
@@ -89,7 +99,7 @@ def _get_daily_data(year, month, day, doctor):
 @app.route("/<int:year>/<int:month>/<int:day>/<string:doctor>/")
 def daily_doctor_stats(year, month, day, doctor):
     data = _get_daily_data(year, month, day, doctor)
-    headers = ["File Name", "Name", "Birth Date"]
+    headers = ["File Name", "Name"]
     name = f"Stats for {doctor} on {day:02d}.{month:02d}.{year}"
     return render_template(
         "daily_stats.html",
@@ -106,7 +116,7 @@ def daily_stats(year, month, day):
         doctor_data = _get_daily_data(year, month, day, doctor)
         doctor_data = [[doctor] + row for row in doctor_data]
         data += doctor_data
-    headers = ["Doctor", "File Name", "Name", "Birth Date"]
+    headers = ["Doctor", "File Name", "Name"]
     name = f"Stats for {day:02d}.{month:02d}.{year}"
     return render_template(
         "daily_stats.html",

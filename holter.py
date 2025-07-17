@@ -28,6 +28,7 @@ def get_in_folder(folder_path, recursive=False) -> typing.List[str]:
     ]
 
 
+# keeping this in order to be able to extract birth date in the future
 def _extract_date(input_string):
     date_pattern = r'\b\d{2}\.\d{2}\.\d{4}\b'
     match = re.search(date_pattern, input_string)
@@ -64,7 +65,6 @@ def get_patient_data(path: str):
                 if i > 50:
                     raise Exception('Cannot find data in the first 50 lines')
 
-        birth_date = _extract_date(lines[-1])
         name = _extract_name(lines[-2])
         if len(name) < 4:
             name_2 = _extract_name(lines[-1])
@@ -72,13 +72,11 @@ def get_patient_data(path: str):
                 name = name_2
         return {
             'name': name,
-            'birth_date': birth_date,
         }
     except Exception as e:
         logger.error(f"Error processing file {path}: {e}")
         return {
             'name': 'Unknown',
-            'birth_date': 'Unknown',
         }
 
 
