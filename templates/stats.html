@@ -19,7 +19,7 @@
         </script>
     </head>
     <body>
-        <a href="/">Stats</a> | <a href="/edit-config">Edit config</a>
+        <a href="/">Stats</a> | <a href="/view-config">View config</a>
         <h2>{{ name }}</h2>
         <a href="{{ previous_month_link }}">Previous Month</a> | <a href="{{ next_month_link }}">Next Month</a>
         <table>
@@ -42,7 +42,7 @@
             </tr>
             {% endfor %}
         </table>
-        
+
         <hr>
         <div id="config-status">Loading config status...</div>
     </body>

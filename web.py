@@ -131,8 +131,8 @@ def home():
     return redirect(url_for('monthly_stats', year=now.year, month=now.month))
 
 
-@app.route("/edit-config")
-def edit_config():
+@app.route("/view-config")
+def view_config():
     return render_template("edit_config.html", config=config.get())
 
 
