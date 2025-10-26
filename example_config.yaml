@@ -34,6 +34,6 @@ users:  # користувачі які мають доступ до систе�
   - username: "admin"
     password: "admin123"
     is_admin: true
-  - username: "doctor1"
+  - username: "doctor"
     password: "doctor123"
     is_admin: false
