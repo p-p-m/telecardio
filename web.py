@@ -2,7 +2,8 @@ import datetime
 import calendar
 import config
 import os
-from flask import Flask, render_template, jsonify, redirect, url_for
+import yaml
+from flask import Flask, render_template, jsonify, redirect, url_for, request, session, flash
 from apscheduler.schedulers.background import BackgroundScheduler
 
 import holter
@@ -11,7 +12,12 @@ from data import get_daily_metadata
 
 
 app = Flask(__name__)
+app.secret_key = 'your-secret-key-change-this'  # Change this to a random secret key
 scheduler = BackgroundScheduler()
+
+# Load config including users
+with open("config.yaml", 'r') as file:
+    CONFIG = yaml.safe_load(file)
 
 
 @app.before_request
@@ -21,6 +27,53 @@ def check_config_access():
     except Exception as e:
         return render_template("config_error.html", error_message=str(e)), 500
 
+
+# ------ Authentication operations ------
+
+def require_auth(is_admin=False):
+    from functools import wraps
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if 'username' not in session:
+                return redirect(url_for('login'))
+            if is_admin and not session.get('is_admin', False):
+                return render_template("404.html"), 404
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+
+def get_user(username):
+    for user in CONFIG.get('users', []):
+        if user['username'] == username:
+            return user
+    return None
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form['username']
+        password = request.form['password']
+
+        user = get_user(username)
+        if user and user['password'] == password:
+            session['username'] = username
+            session['is_admin'] = user['is_admin']
+            return redirect(url_for('home'))
+        else:
+            return render_template('login.html', error='Invalid username or password')
+
+    return render_template('login.html')
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
+
+# ------ Statistics ------
 
 class Cell:
     def __init__(self, value, link=None):
@@ -32,6 +85,7 @@ class Cell:
 
 
 @app.route("/<int:year>/<int:month>/")
+@require_auth(is_admin=False)
 def monthly_stats(year, month):
     # Daily stats for given month and year
     daily_metadata = get_daily_metadata(year=year, month=month)
@@ -97,6 +151,7 @@ def _get_daily_data(year, month, day, doctor):
 
 
 @app.route("/<int:year>/<int:month>/<int:day>/<string:doctor>/")
+@require_auth(is_admin=False)
 def daily_doctor_stats(year, month, day, doctor):
     data = _get_daily_data(year, month, day, doctor)
     headers = ["File Name", "Name"]
@@ -109,6 +164,7 @@ def daily_doctor_stats(year, month, day, doctor):
     )
 
 @app.route("/<int:year>/<int:month>/<int:day>/")
+@require_auth(is_admin=False)
 def daily_stats(year, month, day):
     doctors = get_daily_metadata(year=year, month=month).keys()
     data = []
@@ -125,15 +181,23 @@ def daily_stats(year, month, day):
         data=data,
     )
 
-@app.route("/")
-def home():
+
+@app.route("/stats/")
+@require_auth(is_admin=False)
+def stats():
     now = datetime.datetime.now()
     return redirect(url_for('monthly_stats', year=now.year, month=now.month))
 
+# ------ Config ------
 
-@app.route("/view-config")
-def view_config():
+@require_auth(is_admin=False)
+def edit_config():
     return render_template("edit_config.html", config=config.get())
+
+@app.route("/")
+@require_auth(is_admin=False)
+def home():
+    return render_template("config.html", config=config.get(), is_admin=session['is_admin'])
 
 
 def _distribute_holters_task():
@@ -154,6 +218,7 @@ def _start_scheduler():
 
 
 @app.route("/scheduler/start", methods=["POST"])
+@require_auth(is_admin=True)
 def scheduler_start():
     if not scheduler.get_job("distribute-holters-task"):
         scheduler.add_job(
@@ -164,27 +229,37 @@ def scheduler_start():
             replace_existing=True,
         )
         print("Scheduler job added.")
-    return jsonify({"status": "Job is running"})
+    return jsonify({"status": "Job is running ✅"})
 
 
 @app.route("/scheduler/stop", methods=["POST"])
+@require_auth(is_admin=True)
 def scheduler_stop():
     job = scheduler.get_job("distribute-holters-task")
     if job:
         scheduler.remove_job("distribute-holters-task")
         print("Scheduler job removed.")
-    return jsonify({"status": "Job is not running"})
+    return jsonify({"status": "Job is not running ❌"})
 
 
 @app.route("/scheduler/status", methods=["GET"])
+@require_auth(is_admin=True)
 def scheduler_status():
     job = scheduler.get_job("distribute-holters-task")
     if job:
-        return jsonify({"status": "Job is running"})
+        return jsonify({"status": "Job is running ✅"})
     else:
-        return jsonify({"status": "Job is not running"})
+        return jsonify({"status": "Job is not running ❌"})
+
+
+# ------ Error Handlers ------
+
+@app.errorhandler(404)
+def page_not_found(e):
+    """Handle 404 errors with custom template showing ASCII doctor."""
+    return render_template('404.html'), 404
 
 
 if __name__ == "__main__":
     _start_scheduler()
-    app.run(debug=False)
+    app.run(debug=True)  # PAVEL-TODO: remove debug=True for production

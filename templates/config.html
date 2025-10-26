@@ -37,7 +37,7 @@
 
 </head>
 <body>
-    <a href="/">Stats</a> | <a href="/view-config">View config</a>
+    <a href="/">Config</a> | <a href="/stats">Stats</a> | <a href="/logout">Logout</a>
     <h1>Config</h1>
     <p>Input path: {{ config.input_path }}</p>
     <p>Output path: {{ config.output_path }}</p>
@@ -59,17 +59,44 @@
             <td>{{ doctor.name }}</td>
             <td>{{ doctor.folder_name }}</td>
             <td>{{ doctor.limit }}</td>
-            <td>{{ doctor.skip_stations }}</td>
-            <td>{{ doctor.stations_limits }}</td>
-            <td>{{ doctor.is_working }}</td>
-            <td>{{ doctor.days_off }}</td>
+            <td>
+                <ul>
+                    {% for station in doctor.skip_stations %}
+                        <li>{{ station }}</li>
+                    {% endfor %}
+                </ul>
+            </td>
+            <td>
+                {% if doctor.stations_limits %}
+                <ul>
+                    {% for station, limit in doctor.stations_limits.items() %}
+                        <li>{{ station }}:&nbsp;{{ limit }}</li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                -
+                {% endif %}
+            </td>
+            <td>{% if doctor.is_working %} ✅ {% else %} ❌ {% endif %}</td>
+            <td>
+                {% if doctor.days_off %}
+                <ul>
+                    {% for day_off in doctor.days_off %}
+                        <li>{{ day_off }}</li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                -
+                {% endif %}
+            </td>
         </tr>
         {% endfor %}
     </table>
-
+    {% if is_admin %}
     <hr>
     <div id="config-status">Loading config status...</div>
     <button onclick="schedulerAction('start')">Start Job</button>
     <button onclick="schedulerAction('stop')">Stop Job</button>
+    {% endif %}
 </body>
 </html>

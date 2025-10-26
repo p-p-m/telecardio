@@ -3,8 +3,8 @@
     <head>
         <title>Stats</title>
         <style>
-            table { width: 50%; border-collapse: collapse; margin: 20px 0; }
-            th, td { border: 1px solid black; padding: 10px; text-align: left; }
+            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+            th, td { border: 1px solid black; padding: 2px; text-align: left; }
             th { background-color: #f2f2f2; }
         </style>
         <script>
@@ -19,7 +19,7 @@
         </script>
     </head>
     <body>
-        <a href="/">Stats</a> | <a href="/view-config">View config</a>
+        <a href="/">Config</a> | <a href="/stats">Stats</a> | <a href="/logout">Logout</a>
         <h2>{{ name }}</h2>
         <a href="{{ previous_month_link }}">Previous Month</a> | <a href="{{ next_month_link }}">Next Month</a>
         <table>

@@ -29,3 +29,11 @@ doctors:
     folder_name: "UV"
     limit: 2
     is_working: false
+
+users:  # користувачі які мають доступ до системи, адмін може редагувати конфіг
+  - username: "admin"
+    password: "admin123"
+    is_admin: true
+  - username: "doctor1"
+    password: "doctor123"
+    is_admin: false
