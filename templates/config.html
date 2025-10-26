@@ -53,6 +53,9 @@
             <th>Stations limits</th>
             <th>Is working</th>
             <th>Days off</th>
+            {% if is_admin %}
+            <th>Actions</th>
+            {% endif %}
         </tr>
         {% for doctor in config.doctors %}
         <tr>
@@ -89,6 +92,11 @@
                 -
                 {% endif %}
             </td>
+            {% if is_admin %}
+            <td>
+                <a href="/edit_doctor/{{ doctor.name }}" style="color: #007cba; text-decoration: none;">✏️ Edit</a>
+            </td>
+            {% endif %}
         </tr>
         {% endfor %}
     </table>

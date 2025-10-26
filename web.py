@@ -200,6 +200,229 @@ def home():
     return render_template("config.html", config=config.get(), is_admin=session['is_admin'])
 
 
+# ------ Doctor Management ------
+
+def get_doctor_by_name(name):
+    """Get doctor configuration by name."""
+    current_config = config.get()
+    for doctor in current_config.get('doctors', []):
+        if doctor['name'] == name:
+            return doctor
+    return None
+
+
+def format_yaml_config(config_data):
+    """Format YAML config with proper indentation and spacing like example_config.yaml."""
+    lines = []
+
+    # Add basic config
+    lines.append(f'input_path: "{config_data["input_path"]}"  # тут мають бути файли з розширенням .zhr')
+    lines.append(f'output_path: "{config_data["output_path"]}"  # тут будуть створюватися папки лікарів')
+    lines.append(f'rejected_path: "{config_data["rejected_path"]}"  # тут будуть файли дуплікати (імʼя яких є вже в папці output_path)')
+    lines.append(f'evening_hours: {config_data["evening_hours"]} # години до кінця дня, після яких холтери будуть переноситись на наступний день')
+    lines.append('')
+    lines.append('doctors:')
+
+    # Add doctors with proper formatting and spacing
+    for i, doctor in enumerate(config_data.get('doctors', [])):
+        if i > 0:  # Add empty line between doctors
+            lines.append('')
+
+        lines.append(f'  - name: "{doctor["name"]}"  # ім\'я лікаря')
+        lines.append(f'    folder_name: "{doctor["folder_name"]}"  # назва папки, яка буде створена в output_path')
+        lines.append(f'    limit: {doctor["limit"]}  # склільки максимум холтерів на день буде передано лікарю, -1 - без ліміту')
+
+        # Skip stations
+        if doctor.get('skip_stations'):
+            lines.append('    skip_stations:  # станції(2 перші літери назви холтера), які не потрібно передавати лікарю')
+            for station in doctor['skip_stations']:
+                lines.append(f'      - "{station}"')
+
+        # Station limits
+        if doctor.get('stations_limits'):
+            lines.append('    stations_limits:  # ліміти по станціям (максисмум холтерів, які можна передати лікарю)')
+            for station, limit in doctor['stations_limits'].items():
+                lines.append(f'      "{station}": {limit}')
+
+        lines.append(f'    is_working: {str(doctor["is_working"]).lower()}  # чи працює лікар взагалі, якщо значення false, то лікарь не буде отримувати холтери')
+
+        # Days off
+        if doctor.get('days_off'):
+            lines.append('    days_off:  # дні відпочинку, лікарь не працює в ці дні')
+            for day_off in doctor['days_off']:
+                lines.append(f'      - "{day_off}"')
+        else:
+            lines.append('    days_off: null')
+
+    lines.append('')
+    lines.append('users:  # користувачі які мають доступ до системи, адмін може редагувати конфіг')
+
+    # Add users
+    for user in config_data.get('users', []):
+        lines.append(f'  - username: "{user["username"]}"')
+        lines.append(f'    password: "{user["password"]}"')
+        lines.append(f'    is_admin: {str(user["is_admin"]).lower()}')
+
+    return '\n'.join(lines) + '\n'
+
+
+def update_doctor_config(doctor_name, updated_data):
+    """Update doctor configuration in config.yaml file."""
+    try:
+        # Read current config from file
+        with open("config.yaml", 'r', encoding='utf-8') as file:
+            current_config = yaml.safe_load(file)
+
+        # Find and update the doctor
+        doctor_found = False
+        for i, doctor in enumerate(current_config.get('doctors', [])):
+            if doctor['name'] == doctor_name:
+                # Update the doctor with new data, preserving name and folder_name
+                current_config['doctors'][i].update({
+                    'limit': updated_data['limit'],
+                    'skip_stations': updated_data['skip_stations'],
+                    'stations_limits': updated_data['stations_limits'],
+                    'is_working': updated_data['is_working'],
+                    'days_off': updated_data['days_off']
+                })
+                doctor_found = True
+                break
+
+        if not doctor_found:
+            raise ValueError(f"Doctor '{doctor_name}' not found in configuration")
+
+        # Write updated config back to file with proper formatting
+        formatted_yaml = format_yaml_config(current_config)
+        with open("config.yaml", 'w', encoding='utf-8') as file:
+            file.write(formatted_yaml)
+
+        config.reset()
+
+        return True
+    except Exception as e:
+        print(f"Error updating doctor config: {e}")
+        return False
+
+
+@app.route("/edit_doctor/<string:doctor_name>", methods=["GET", "POST"])
+@require_auth(is_admin=True)
+def edit_doctor(doctor_name):
+    """Edit doctor configuration."""
+    doctor = get_doctor_by_name(doctor_name)
+    if not doctor:
+        return render_template('404.html'), 404
+
+    if request.method == "POST":
+        try:
+            # Parse form data
+            limit = int(request.form.get('limit', -1))
+            if limit < -1:
+                raise ValueError("Limit must be -1 or greater")
+
+            # Parse skip stations
+            skip_stations = []
+            for station in request.form.getlist('skip_stations[]'):
+                station = station.strip().upper()
+                if station:
+                    if len(station) != 2 or not station.isalpha():
+                        raise ValueError("Skip stations must be exactly 2 letters")
+                    skip_stations.append(station)
+
+            # Parse stations limits
+            stations_limits = {}
+            limit_keys = request.form.getlist('stations_limits_keys[]')
+            limit_values = request.form.getlist('stations_limits_values[]')
+
+            for key, value in zip(limit_keys, limit_values):
+                key = key.strip().upper()
+                if key and value:
+                    if len(key) != 2 or not key.isalpha():
+                        raise ValueError("Station codes must be exactly 2 letters")
+                    try:
+                        value = int(value)
+                        if value < 1:
+                            raise ValueError("Station limits must be positive integers")
+                        stations_limits[key] = value
+                    except ValueError:
+                        raise ValueError("Station limits must be positive integers")
+
+            # Parse is_working checkbox
+            is_working = 'is_working' in request.form
+
+            # Parse days off
+            days_off = []
+            for date_str in request.form.getlist('days_off[]'):
+                date_str = date_str.strip()
+                if date_str:
+                    try:
+                        # Validate date format and convert to DD.MM.YYYY
+                        date_obj = datetime.datetime.strptime(date_str, '%Y-%m-%d')
+                        formatted_date = date_obj.strftime('%d.%m.%Y')
+                        days_off.append(formatted_date)
+                    except ValueError:
+                        raise ValueError("Invalid date format")
+
+            # Prepare updated data
+            updated_data = {
+                'limit': limit,
+                'skip_stations': skip_stations if skip_stations else None,
+                'stations_limits': stations_limits if stations_limits else None,
+                'is_working': is_working,
+                'days_off': days_off if days_off else None
+            }
+
+            # Update configuration
+            if update_doctor_config(doctor_name, updated_data):
+                # Get the updated doctor data and convert dates for display
+                updated_doctor = get_doctor_by_name(doctor_name)
+                doctor_copy = updated_doctor.copy()
+                if doctor_copy.get('days_off'):
+                    converted_days = []
+                    for day_off in doctor_copy['days_off']:
+                        try:
+                            # Parse DD.MM.YYYY format and convert to YYYY-MM-DD
+                            date_obj = datetime.datetime.strptime(day_off, '%d.%m.%Y')
+                            converted_days.append(date_obj.strftime('%Y-%m-%d'))
+                        except ValueError:
+                            # If parsing fails, keep original format
+                            converted_days.append(day_off)
+                    doctor_copy['days_off'] = converted_days
+
+                return render_template('edit_doctor.html',
+                                     doctor=doctor_copy,
+                                     success="Doctor configuration updated successfully!")
+            else:
+                return render_template('edit_doctor.html',
+                                     doctor=doctor,
+                                     error="Failed to update doctor configuration.")
+
+        except ValueError as e:
+            return render_template('edit_doctor.html',
+                                 doctor=doctor,
+                                 error=str(e))
+        except Exception as e:
+            return render_template('edit_doctor.html',
+                                 doctor=doctor,
+                                 error=f"An unexpected error occurred: {str(e)}")
+
+    # GET request - show form
+    # Convert days_off from DD.MM.YYYY to YYYY-MM-DD for HTML date inputs
+    doctor_copy = doctor.copy()
+    if doctor_copy.get('days_off'):
+        converted_days = []
+        for day_off in doctor_copy['days_off']:
+            try:
+                # Parse DD.MM.YYYY format and convert to YYYY-MM-DD
+                date_obj = datetime.datetime.strptime(day_off, '%d.%m.%Y')
+                converted_days.append(date_obj.strftime('%Y-%m-%d'))
+            except ValueError:
+                # If parsing fails, keep original format
+                converted_days.append(day_off)
+        doctor_copy['days_off'] = converted_days
+
+    return render_template('edit_doctor.html', doctor=doctor_copy)
+
+
 def _distribute_holters_task():
     move_holters.distribute_holters()
 

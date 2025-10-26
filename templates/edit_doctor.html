@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Doctor - {{ doctor.name }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .nav-links {
+            margin-bottom: 20px;
+            padding: 10px 0;
+            border-bottom: 1px solid #ccc;
+        }
+        .nav-links a {
+            margin-right: 15px;
+            text-decoration: none;
+            color: #007cba;
+        }
+        .nav-links a:hover {
+            text-decoration: underline;
+        }
+        .form-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 30px;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #007cba;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 25px;
+        }
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        input[type="text"], input[type="number"], textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        input[type="checkbox"] {
+            margin-right: 8px;
+            transform: scale(1.2);
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+        }
+        textarea {
+            height: 80px;
+            resize: vertical;
+        }
+        .help-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .dynamic-list {
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            padding: 15px;
+            background-color: #f9f9f9;
+        }
+        .list-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .list-item input {
+            margin-right: 10px;
+            flex: 1;
+        }
+        .dict-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .dict-item input:first-child {
+            width: 80px;
+            margin-right: 10px;
+        }
+        .dict-item input:last-child {
+            flex: 1;
+            margin-right: 10px;
+        }
+        .btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-add {
+            background-color: #28a745;
+            color: white;
+        }
+        .btn-remove {
+            background-color: #dc3545;
+            color: white;
+        }
+        .btn-primary {
+            background-color: #007cba;
+            color: white;
+            padding: 12px 30px;
+            font-size: 16px;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+            padding: 12px 30px;
+            font-size: 16px;
+            text-decoration: none;
+            margin-right: 10px;
+        }
+        .btn:hover {
+            opacity: 0.9;
+        }
+        .form-actions {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }
+        .calendar-container {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            padding: 10px;
+            background-color: #f9f9f9;
+        }
+        .date-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .date-item input[type="date"] {
+            margin-right: 10px;
+            width: auto;
+        }
+        .error {
+            color: #dc3545;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        .success {
+            color: #28a745;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="nav-links">
+        <a href="/">Config</a> |
+        <a href="/stats">Stats</a> |
+        <a href="/logout">Logout</a>
+    </div>
+
+    <div class="form-container">
+        <h1>Edit Doctor: {{ doctor.name }}</h1>
+
+        {% if error %}
+            <div class="error">{{ error }}</div>
+        {% endif %}
+
+        {% if success %}
+            <div class="success">{{ success }}</div>
+        {% endif %}
+
+        <form method="POST" id="doctorForm">
+            <!-- Limit Field -->
+            <div class="form-group">
+                <label for="limit">Daily Limit:</label>
+                <input type="number" id="limit" name="limit" value="{{ doctor.limit }}" min="-1" required>
+                <div class="help-text">Maximum holters per day. Use -1 for unlimited.</div>
+            </div>
+
+            <!-- Skip Stations Field -->
+            <div class="form-group">
+                <label>Skip Stations:</label>
+                <div class="dynamic-list" id="skipStationsList">
+                    {% for station in doctor.skip_stations or [] %}
+                    <div class="list-item">
+                        <input type="text" name="skip_stations[]" value="{{ station }}" maxlength="2" pattern="[A-Za-z]{2}" placeholder="AB">
+                        <button type="button" class="btn btn-remove" onclick="removeListItem(this)">Remove</button>
+                    </div>
+                    {% endfor %}
+                    <button type="button" class="btn btn-add" onclick="addSkipStation()">Add Station</button>
+                </div>
+                <div class="help-text">2-letter station codes to skip (e.g., AB, CD).</div>
+            </div>
+
+            <!-- Stations Limits Field -->
+            <div class="form-group">
+                <label>Station Limits:</label>
+                <div class="dynamic-list" id="stationLimitsList">
+                    {% for station, limit in (doctor.stations_limits or {}).items() %}
+                    <div class="dict-item">
+                        <input type="text" name="stations_limits_keys[]" value="{{ station }}" maxlength="2" pattern="[A-Za-z]{2}" placeholder="AB">
+                        <input type="number" name="stations_limits_values[]" value="{{ limit }}" min="1" placeholder="1">
+                        <button type="button" class="btn btn-remove" onclick="removeDictItem(this)">Remove</button>
+                    </div>
+                    {% endfor %}
+                    <button type="button" class="btn btn-add" onclick="addStationLimit()">Add Station Limit</button>
+                </div>
+                <div class="help-text">Maximum holters per station. Station codes must be 2 letters.</div>
+            </div>
+
+            <!-- Is Working Field -->
+            <div class="form-group">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="is_working" name="is_working" {% if doctor.is_working %}checked{% endif %}>
+                    <label for="is_working">Is Working</label>
+                </div>
+                <div class="help-text">Whether the doctor is currently active and receiving holters.</div>
+            </div>
+
+            <!-- Days Off Field -->
+            <div class="form-group">
+                <label>Days Off:</label>
+                <div class="calendar-container" id="daysOffList">
+                    {% for day_off in doctor.days_off or [] %}
+                    <div class="date-item">
+                        <input type="date" name="days_off[]" value="{{ day_off }}">
+                        <button type="button" class="btn btn-remove" onclick="removeDateItem(this)">Remove</button>
+                    </div>
+                    {% endfor %}
+                    <button type="button" class="btn btn-add" onclick="addDayOff()">Add Day Off</button>
+                </div>
+                <div class="help-text">Select dates when the doctor is not available.</div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+                <a href="/" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        function addSkipStation() {
+            const container = document.getElementById('skipStationsList');
+            const div = document.createElement('div');
+            div.className = 'list-item';
+            div.innerHTML = `
+                <input type="text" name="skip_stations[]" maxlength="2" pattern="[A-Za-z]{2}" placeholder="AB">
+                <button type="button" class="btn btn-remove" onclick="removeListItem(this)">Remove</button>
+            `;
+            container.insertBefore(div, container.lastElementChild);
+        }
+
+        function removeListItem(button) {
+            button.parentElement.remove();
+        }
+
+        function addStationLimit() {
+            const container = document.getElementById('stationLimitsList');
+            const div = document.createElement('div');
+            div.className = 'dict-item';
+            div.innerHTML = `
+                <input type="text" name="stations_limits_keys[]" maxlength="2" pattern="[A-Za-z]{2}" placeholder="AB">
+                <input type="number" name="stations_limits_values[]" min="1" placeholder="1">
+                <button type="button" class="btn btn-remove" onclick="removeDictItem(this)">Remove</button>
+            `;
+            container.insertBefore(div, container.lastElementChild);
+        }
+
+        function removeDictItem(button) {
+            button.parentElement.remove();
+        }
+
+        function addDayOff() {
+            const container = document.getElementById('daysOffList');
+            const div = document.createElement('div');
+            div.className = 'date-item';
+            div.innerHTML = `
+                <input type="date" name="days_off[]">
+                <button type="button" class="btn btn-remove" onclick="removeDateItem(this)">Remove</button>
+            `;
+            container.insertBefore(div, container.lastElementChild);
+        }
+
+        function removeDateItem(button) {
+            button.parentElement.remove();
+        }
+
+        // Form validation
+        document.getElementById('doctorForm').addEventListener('submit', function(e) {
+            const limit = document.getElementById('limit').value;
+            if (parseInt(limit) < -1) {
+                e.preventDefault();
+                alert('Limit must be -1 or greater.');
+                return;
+            }
+
+            // Validate skip stations (2 letters each)
+            const skipStations = document.querySelectorAll('input[name="skip_stations[]"]');
+            for (let station of skipStations) {
+                if (station.value && !/^[A-Za-z]{2}$/.test(station.value)) {
+                    e.preventDefault();
+                    alert('Skip stations must be exactly 2 letters.');
+                    station.focus();
+                    return;
+                }
+            }
+
+            // Validate station limits
+            const stationKeys = document.querySelectorAll('input[name="stations_limits_keys[]"]');
+            const stationValues = document.querySelectorAll('input[name="stations_limits_values[]"]');
+
+            for (let i = 0; i < stationKeys.length; i++) {
+                const key = stationKeys[i].value;
+                const value = stationValues[i].value;
+
+                if (key && !/^[A-Za-z]{2}$/.test(key)) {
+                    e.preventDefault();
+                    alert('Station codes must be exactly 2 letters.');
+                    stationKeys[i].focus();
+                    return;
+                }
+
+                if (key && (!value || parseInt(value) < 1)) {
+                    e.preventDefault();
+                    alert('Station limits must be positive integers.');
+                    stationValues[i].focus();
+                    return;
+                }
+            }
+        });
+    </script>
+</body>
+</html>
